@@ -1,0 +1,9 @@
+[package]
+name = "silica-xcb"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+silica = { path = "../silica" }
+xcb = "1.2.1"
+cairo-rs = { version = "0.17.0", features = ["xcb"] }
