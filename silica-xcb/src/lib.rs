@@ -1,5 +1,6 @@
 use std::{cell::Cell, rc::Rc};
 
+use glyph_brush::Section;
 use silica::{taffy::prelude::*, widget::Container, GraphicsContext, ThemeColor};
 use xcb::{x, Xid};
 
@@ -16,17 +17,17 @@ xcb::atoms_struct! {
 pub struct CairoContext(cairo::Context);
 
 impl silica::GraphicsContext for CairoContext {
-    fn save(&self) {
+    fn save(&mut self) {
         self.0.save().unwrap();
     }
-    fn restore(&self) {
+    fn restore(&mut self) {
         self.0.restore().unwrap();
     }
-    fn translate(&self, tx: f32, ty: f32) {
+    fn translate(&mut self, tx: f32, ty: f32) {
         self.0.translate(tx as f64, ty as f64);
     }
 
-    fn set_color(&self, color: ThemeColor) {
+    fn set_color(&mut self, color: ThemeColor) {
         let rgba = color.to_rgba();
         self.0.set_source_rgba(
             rgba[0] as f64,
@@ -35,12 +36,12 @@ impl silica::GraphicsContext for CairoContext {
             rgba[3] as f64,
         );
     }
-    fn draw_rect(&self, size: Size<f32>) {
+    fn draw_rect(&mut self, size: Size<f32>) {
         let size = size.map(|v| v as f64);
         self.0.rectangle(0.0, 0.0, size.width, size.height);
         self.0.fill().unwrap();
     }
-    fn draw_border(&self, size: Size<f32>, border: Rect<LengthPercentage>) {
+    fn draw_border(&mut self, size: Size<f32>, border: Rect<LengthPercentage>) {
         let size = size.map(|v| v as f64);
         let border = border.map(|val| match val {
             LengthPercentage::Points(points) => points as f64,
@@ -73,9 +74,10 @@ impl silica::GraphicsContext for CairoContext {
         }
         self.0.stroke().unwrap();
     }
-    fn draw_text(&self, text: &str) {
+    fn draw_text(&mut self, _size: Size<f32>, text: Section) {
+        // TODO
         self.0.move_to(2.0, 12.0);
-        self.0.show_text(text).unwrap();
+        self.0.show_text(text.text[0].text).unwrap();
     }
 }
 
@@ -86,6 +88,7 @@ pub struct Window {
     surface: cairo::XCBSurface,
     size: Cell<Size<u16>>,
     gui: Rc<silica::Gui>,
+    root: Container,
 }
 
 impl Window {
@@ -172,6 +175,7 @@ impl Window {
             surface,
             size: Cell::new(size),
             gui,
+            root,
         })
     }
 
@@ -227,7 +231,7 @@ impl Window {
             // println!("Received event {:#?}", event);
             match event {
                 xcb::Event::X(x::Event::Expose(_)) => {
-                    let context = CairoContext(
+                    let mut context = CairoContext(
                         cairo::Context::new(&self.surface).expect("failed to create cairo context"),
                     );
                     context.set_color(ThemeColor::Background);
@@ -235,7 +239,7 @@ impl Window {
 
                     let size = self.size.get().map(|v| v as f32);
                     self.gui.emit_layout(Some(size));
-                    self.gui.emit_draw(Box::new(context));
+                    self.gui.draw(&mut context, self.root.clone());
 
                     self.surface.flush();
                 }
@@ -256,10 +260,18 @@ impl Window {
                         .emit_pointer_motion(ev.event_x().into(), ev.event_y().into());
                 }
                 xcb::Event::X(x::Event::ButtonPress(ev)) => {
-                    self.gui.emit_pointer_button(ev.detail(), true);
+                    if ev.detail() == 1 {
+                        // LMB
+                        self.gui
+                            .emit_pointer_button(silica::signal::PointerButton::Primary(true));
+                    }
                 }
                 xcb::Event::X(x::Event::ButtonRelease(ev)) => {
-                    self.gui.emit_pointer_button(ev.detail(), false);
+                    if ev.detail() == 1 {
+                        // LMB
+                        self.gui
+                            .emit_pointer_button(silica::signal::PointerButton::Primary(false));
+                    }
                 }
                 xcb::Event::X(x::Event::KeyPress(ev)) => {
                     println!("Key '{}' pressed", ev.detail());

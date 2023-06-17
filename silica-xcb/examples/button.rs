@@ -10,6 +10,7 @@ fn main() -> silica_xcb::Result<()> {
             height: points(480.0),
         },
         padding: Rect::points(64.0),
+        gap: Size::points(8.0),
         ..Default::default()
     });
 
@@ -25,7 +26,14 @@ fn main() -> silica_xcb::Result<()> {
     root.add_child(button);
 
     let label = Label::new(root.gui());
-    times_clicked.connect_changed({
+    label.set_layout(Style {
+        min_size: Size {
+            width: Dimension::Points(256.),
+            height: Dimension::Points(32.),
+        },
+        ..Default::default()
+    });
+    times_clicked.connect_change({
         let label = label.clone();
         move |times_clicked, signal::Change| {
             label.set_text(format!("Times Clicked: {}", times_clicked.get()));

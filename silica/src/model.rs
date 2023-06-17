@@ -27,7 +27,7 @@ where
         self.data.set(val);
         self.signals.emit(self.clone(), Change);
     }
-    pub fn connect_changed<F>(self: &Rc<Self>, mut handler: F)
+    pub fn connect_change<F>(self: &Rc<Self>, mut handler: F)
     where
         F: FnMut(Rc<Self>, Change) + 'static,
     {

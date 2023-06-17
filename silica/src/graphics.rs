@@ -1,3 +1,4 @@
+use glyph_brush::Section;
 use taffy::prelude::*;
 
 #[derive(Clone, Copy, Debug)]
@@ -50,12 +51,12 @@ impl Default for VisualStyle {
 }
 
 pub trait GraphicsContext {
-    fn save(&self);
-    fn restore(&self);
-    fn translate(&self, tx: f32, ty: f32);
+    fn save(&mut self);
+    fn restore(&mut self);
+    fn translate(&mut self, tx: f32, ty: f32);
 
-    fn set_color(&self, color: ThemeColor);
-    fn draw_rect(&self, size: Size<f32>);
-    fn draw_border(&self, size: Size<f32>, border: Rect<LengthPercentage>);
-    fn draw_text(&self, text: &str);
+    fn set_color(&mut self, color: ThemeColor);
+    fn draw_rect(&mut self, size: Size<f32>);
+    fn draw_border(&mut self, size: Size<f32>, border: Rect<LengthPercentage>);
+    fn draw_text(&mut self, size: Size<f32>, text: Section);
 }

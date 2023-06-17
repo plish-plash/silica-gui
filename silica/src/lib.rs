@@ -10,6 +10,7 @@ use std::{
 
 use taffy::prelude::*;
 
+pub use glyph_brush;
 pub use graphics::*;
 pub use signal::{Signal, Signals};
 pub use taffy;
@@ -22,13 +23,13 @@ pub enum PointerState {
 }
 
 pub trait WidgetObject: Sized {
-    fn draw(data: &WidgetData<Self>, context: &dyn GraphicsContext, size: Size<f32>);
+    fn draw(data: &WidgetData<Self>, context: &mut dyn GraphicsContext, size: Size<f32>);
     fn set_pointer_state(_data: Rc<WidgetData<Self>>, _state: PointerState) {}
 }
 
 pub trait WidgetDataUntyped {
     fn node(&self) -> Node;
-    fn draw(&self, context: &dyn GraphicsContext, size: Size<f32>);
+    fn draw(&self, context: &mut dyn GraphicsContext, size: Size<f32>);
     fn children(&self) -> Ref<Vec<Widget>>;
     fn visual(&self) -> Ref<Option<VisualStyle>>;
     fn highlight_opaque(&self) -> bool;
@@ -128,7 +129,7 @@ where
     fn node(&self) -> Node {
         self.node
     }
-    fn draw(&self, context: &dyn GraphicsContext, size: Size<f32>) {
+    fn draw(&self, context: &mut dyn GraphicsContext, size: Size<f32>) {
         T::draw(self, context, size);
     }
     fn children(&self) -> Ref<Vec<Widget>> {
@@ -210,23 +211,15 @@ impl Gui {
         });
         gui.signals.connect({
             let root = root.clone().into();
-            move |gui, signal::Draw(context)| {
-                gui.dirty.set(false);
-                gui.draw_widget(context.as_ref(), &root);
-            }
-        });
-        gui.signals.connect({
-            let root = root.clone().into();
             move |gui, signal::PointerMotion { x, y }| {
                 gui.state.borrow_mut().on_pointer_move(&gui, &root, x, y);
             }
         });
-        gui.signals
-            .connect(|gui, signal::PointerButton { button, state }| {
-                if button == 1 {
-                    gui.state.borrow_mut().on_pointer_button(state);
-                }
-            });
+        gui.signals.connect(|gui, button: signal::PointerButton| {
+            if let signal::PointerButton::Primary(state) = button {
+                gui.state.borrow_mut().on_pointer_button(state);
+            }
+        });
         root
     }
 
@@ -236,21 +229,21 @@ impl Gui {
     pub fn check_dirty(&self) -> bool {
         self.dirty.replace(false)
     }
+    pub fn draw(&self, context: &mut dyn GraphicsContext, root: widget::Container) {
+        self.dirty.set(false);
+        self.draw_widget(context, &root.into());
+    }
 
     pub fn emit_layout(self: &Rc<Self>, available_space: Option<Size<f32>>) {
         self.signals
             .emit(self.clone(), signal::Layout(available_space));
     }
-    pub fn emit_draw(self: &Rc<Self>, context: Box<dyn GraphicsContext>) {
-        self.signals.emit(self.clone(), signal::Draw(context));
-    }
     pub fn emit_pointer_motion(self: &Rc<Self>, x: f32, y: f32) {
         self.signals
             .emit(self.clone(), signal::PointerMotion { x, y });
     }
-    pub fn emit_pointer_button(self: &Rc<Self>, button: u8, state: bool) {
-        self.signals
-            .emit(self.clone(), signal::PointerButton { button, state });
+    pub fn emit_pointer_button(self: &Rc<Self>, button: signal::PointerButton) {
+        self.signals.emit(self.clone(), button);
     }
 
     fn hit_highlightable_widget(&self, mut x: f32, mut y: f32, widget: &Widget) -> Option<Widget> {
@@ -271,7 +264,7 @@ impl Gui {
         None
     }
 
-    fn draw_widget(&self, context: &dyn GraphicsContext, widget: &Widget) {
+    fn draw_widget(&self, context: &mut dyn GraphicsContext, widget: &Widget) {
         context.save();
         let layout_tree = self.layout.borrow();
         let layout = layout_tree.layout(widget.node()).unwrap();

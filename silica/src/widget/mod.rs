@@ -1,8 +1,9 @@
 use std::{
-    cell::{Cell, Ref, RefCell},
+    cell::{Cell, RefCell},
     rc::Rc,
 };
 
+use glyph_brush::{HorizontalAlign, OwnedSection, OwnedText, VerticalAlign};
 use taffy::prelude::*;
 
 use crate::{
@@ -29,7 +30,7 @@ macro_rules! define_widget {
 }
 
 impl WidgetObject for () {
-    fn draw(_data: &WidgetData<Self>, _context: &dyn GraphicsContext, _size: Size<f32>) {}
+    fn draw(_data: &WidgetData<Self>, _context: &mut dyn GraphicsContext, _size: Size<f32>) {}
 }
 
 define_widget!(Container, ());
@@ -41,12 +42,12 @@ impl Container {
 }
 
 pub struct LabelData {
-    text: RefCell<String>,
+    text: RefCell<OwnedSection>,
 }
 
 impl WidgetObject for LabelData {
-    fn draw(data: &WidgetData<Self>, context: &dyn GraphicsContext, _size: Size<f32>) {
-        context.draw_text(&data.object.text.borrow());
+    fn draw(data: &WidgetData<Self>, context: &mut dyn GraphicsContext, size: Size<f32>) {
+        context.draw_text(size, data.object.text.borrow().to_borrowed());
     }
 }
 
@@ -54,22 +55,45 @@ define_widget!(Label, LabelData);
 
 impl Label {
     pub fn new(gui: Rc<Gui>) -> Self {
-        Self::with_text(gui, String::new())
-    }
-    pub fn with_text(gui: Rc<Gui>, text: String) -> Self {
         Label(WidgetData::new(
             gui,
             true,
             LabelData {
-                text: RefCell::new(text),
+                text: RefCell::new(OwnedSection::default()),
             },
         ))
     }
-    pub fn text(&self) -> Ref<String> {
-        self.object.text.borrow()
+    pub fn with_text(gui: Rc<Gui>, string: String) -> Self {
+        let label = Self::new(gui);
+        label.set_text(string);
+        label
     }
-    pub fn set_text(&self, text: String) {
-        *self.object.text.borrow_mut() = text;
+
+    pub fn text(&self) -> String {
+        let text = self.object.text.borrow();
+        if text.text.is_empty() {
+            return String::new();
+        } else {
+            return text.text[0].text.clone();
+        }
+    }
+    pub fn set_text(&self, string: String) {
+        let mut text = self.object.text.borrow_mut();
+        text.text = vec![OwnedText::new(string)];
+    }
+    pub fn set_color(&self, color: [f32; 4]) {
+        let mut text = self.object.text.borrow_mut();
+        if !text.text.is_empty() {
+            text.text[0].extra.color = color;
+        }
+    }
+    pub fn set_halign(&self, h_align: HorizontalAlign) {
+        let mut text = self.object.text.borrow_mut();
+        text.layout = text.layout.h_align(h_align);
+    }
+    pub fn set_valign(&self, v_align: VerticalAlign) {
+        let mut text = self.object.text.borrow_mut();
+        text.layout = text.layout.v_align(v_align);
     }
 }
 
@@ -80,7 +104,7 @@ pub struct ButtonData {
 }
 
 impl WidgetObject for ButtonData {
-    fn draw(_data: &WidgetData<Self>, _context: &dyn GraphicsContext, _size: Size<f32>) {}
+    fn draw(_data: &WidgetData<Self>, _context: &mut dyn GraphicsContext, _size: Size<f32>) {}
     fn set_pointer_state(data: Rc<WidgetData<Self>>, state: PointerState) {
         let button = Button(data);
         let mut visual = VisualStyle::BUTTON;
@@ -101,15 +125,24 @@ define_widget!(Button, ButtonData);
 
 impl Button {
     pub fn with_label(gui: Rc<Gui>, label_text: String) -> Self {
+        let label = Label::with_text(gui.clone(), label_text);
+        label.set_halign(HorizontalAlign::Center);
+        label.set_valign(VerticalAlign::Center);
+        label.set_layout(Style {
+            flex_grow: 1.0,
+            ..Default::default()
+        });
+
         let style = Style {
             min_size: Size {
                 width: Dimension::Points(128.),
                 height: Dimension::Points(32.),
             },
             border: Rect::points(2.0),
+            align_items: Some(AlignItems::Stretch),
+            justify_items: Some(JustifyItems::Stretch),
             ..Default::default()
         };
-        let label = Label::with_text(gui.clone(), label_text);
         let button = Button(WidgetData::with_style(
             gui,
             style,

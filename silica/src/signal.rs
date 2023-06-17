@@ -3,8 +3,6 @@ use std::cell::RefCell;
 use taffy::prelude::Size;
 use type_map::TypeMap;
 
-use crate::GraphicsContext;
-
 pub trait Signal: 'static {}
 
 pub struct Signals<T> {
@@ -49,17 +47,14 @@ impl Signal for Activate {}
 pub struct Layout(pub Option<Size<f32>>);
 impl Signal for Layout {}
 
-pub struct Draw(pub Box<dyn GraphicsContext>);
-impl Signal for Draw {}
-
 pub struct PointerMotion {
     pub x: f32,
     pub y: f32,
 }
 impl Signal for PointerMotion {}
 
-pub struct PointerButton {
-    pub button: u8,
-    pub state: bool,
+pub enum PointerButton {
+    Primary(bool),
+    Secondary(bool),
 }
 impl Signal for PointerButton {}
