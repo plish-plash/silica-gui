@@ -1,7 +1,10 @@
 use std::{cell::Cell, rc::Rc};
 
-use glyph_brush::Section;
-use silica::{taffy::prelude::*, widget::Container, GraphicsContext, ThemeColor};
+use pangocairo::pango;
+use silica::{
+    taffy::prelude::*, widget::Container, GraphicsContext, HorizontalAlign, TextSection,
+    ThemeColor, VerticalAlign,
+};
 use xcb::{x, Xid};
 
 pub use xcb::Result;
@@ -14,7 +17,7 @@ xcb::atoms_struct! {
     }
 }
 
-pub struct CairoContext(cairo::Context);
+pub struct CairoContext(cairo::Context, pango::Context);
 
 impl silica::GraphicsContext for CairoContext {
     fn save(&mut self) {
@@ -74,10 +77,27 @@ impl silica::GraphicsContext for CairoContext {
         }
         self.0.stroke().unwrap();
     }
-    fn draw_text(&mut self, _size: Size<f32>, text: Section) {
-        // TODO
-        self.0.move_to(2.0, 12.0);
-        self.0.show_text(text.text[0].text).unwrap();
+    fn draw_text(&mut self, size: Size<f32>, text: &TextSection) {
+        pangocairo::update_context(&self.0, &self.1);
+        let layout = pango::Layout::new(&self.1);
+        layout.set_width((size.width * (pango::SCALE as f32)) as i32);
+        layout.set_alignment(match text.h_align {
+            HorizontalAlign::Left => pango::Alignment::Left,
+            HorizontalAlign::Center => pango::Alignment::Center,
+            HorizontalAlign::Right => pango::Alignment::Right,
+        });
+        let font = pango::FontDescription::from_string(&text.font); // TODO cache this
+        layout.set_font_description(Some(&font));
+        layout.set_text(&text.text);
+
+        let height = size.height as f64;
+        let text_height = (layout.size().1 as f64) / (pango::SCALE as f64);
+        match text.v_align {
+            VerticalAlign::Top => self.0.move_to(0.0, 0.0),
+            VerticalAlign::Center => self.0.move_to(0.0, (height / 2.0) - (text_height / 2.0)),
+            VerticalAlign::Bottom => self.0.move_to(0.0, height - text_height),
+        }
+        pangocairo::show_layout(&self.0, &layout);
     }
 }
 
@@ -231,9 +251,10 @@ impl Window {
             // println!("Received event {:#?}", event);
             match event {
                 xcb::Event::X(x::Event::Expose(_)) => {
-                    let mut context = CairoContext(
-                        cairo::Context::new(&self.surface).expect("failed to create cairo context"),
-                    );
+                    let cairo_context =
+                        cairo::Context::new(&self.surface).expect("failed to create cairo context");
+                    let pango_context = pangocairo::create_context(&cairo_context);
+                    let mut context = CairoContext(cairo_context, pango_context);
                     context.set_color(ThemeColor::Background);
                     context.0.paint().unwrap();
 

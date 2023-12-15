@@ -1,4 +1,3 @@
-use glyph_brush::Section;
 use taffy::prelude::*;
 
 #[derive(Clone, Copy, Debug)]
@@ -50,6 +49,39 @@ impl Default for VisualStyle {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum HorizontalAlign {
+    Left,
+    Center,
+    Right,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum VerticalAlign {
+    Top,
+    Center,
+    Bottom,
+}
+
+#[derive(Debug, Clone)]
+pub struct TextSection {
+    pub font: String,
+    pub text: String,
+    pub h_align: HorizontalAlign,
+    pub v_align: VerticalAlign,
+}
+
+impl Default for TextSection {
+    fn default() -> Self {
+        TextSection {
+            font: "sans 14".to_owned(),
+            text: String::new(),
+            h_align: HorizontalAlign::Left,
+            v_align: VerticalAlign::Center,
+        }
+    }
+}
+
 pub trait GraphicsContext {
     fn save(&mut self);
     fn restore(&mut self);
@@ -58,5 +90,5 @@ pub trait GraphicsContext {
     fn set_color(&mut self, color: ThemeColor);
     fn draw_rect(&mut self, size: Size<f32>);
     fn draw_border(&mut self, size: Size<f32>, border: Rect<LengthPercentage>);
-    fn draw_text(&mut self, size: Size<f32>, text: Section);
+    fn draw_text(&mut self, size: Size<f32>, text: &TextSection);
 }

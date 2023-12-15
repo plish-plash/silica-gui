@@ -10,7 +10,6 @@ use std::{
 
 use taffy::prelude::*;
 
-pub use glyph_brush;
 pub use graphics::*;
 pub use signal::{Signal, Signals};
 pub use taffy;
@@ -32,7 +31,7 @@ pub trait WidgetDataUntyped {
     fn draw(&self, context: &mut dyn GraphicsContext, size: Size<f32>);
     fn children(&self) -> Ref<Vec<Widget>>;
     fn visual(&self) -> Ref<Option<VisualStyle>>;
-    fn highlight_opaque(&self) -> bool;
+    fn can_highlight(&self) -> bool;
     fn set_pointer_state(self: Rc<Self>, state: PointerState);
 }
 
@@ -43,7 +42,7 @@ pub struct WidgetData<T> {
     gui: Rc<Gui>,
     node: Node,
     visual: RefCell<Option<VisualStyle>>,
-    highlight_opaque: bool,
+    can_highlight: bool,
     object: T,
 
     // parent: RefCell<Option<WidgetWeak>>,
@@ -66,7 +65,7 @@ impl<T> WidgetData<T> {
         object: T,
     ) -> Rc<Self> {
         let node = gui.layout.borrow_mut().new_leaf(style).unwrap();
-        let highlight_opaque = visual
+        let can_highlight = visual
             .as_ref()
             .map(|vis| vis.background.is_some())
             .unwrap_or(false);
@@ -74,7 +73,7 @@ impl<T> WidgetData<T> {
             gui,
             node,
             visual: RefCell::new(visual),
-            highlight_opaque,
+            can_highlight,
             object,
             children: RefCell::default(),
         })
@@ -138,8 +137,8 @@ where
     fn visual(&self) -> Ref<Option<VisualStyle>> {
         self.visual.borrow()
     }
-    fn highlight_opaque(&self) -> bool {
-        self.highlight_opaque
+    fn can_highlight(&self) -> bool {
+        self.can_highlight
     }
     fn set_pointer_state(self: Rc<Self>, state: PointerState) {
         T::set_pointer_state(self, state);
@@ -257,7 +256,7 @@ impl Gui {
                     return Some(hit_widget);
                 }
             }
-            if widget.highlight_opaque() {
+            if widget.can_highlight() {
                 return Some(widget.clone());
             }
         }

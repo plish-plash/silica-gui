@@ -6,4 +6,3 @@ edition = "2021"
 [dependencies]
 taffy = "0.3"
 type-map = "0.5"
-glyph_brush = "0.7"
