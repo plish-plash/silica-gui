@@ -3,3 +3,4 @@ members = [
     "silica",
     "silica-xcb",
 ]
+resolver = "2"
