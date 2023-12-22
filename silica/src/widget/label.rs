@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use taffy::geometry::Size;
+use taffy::geometry::{Point, Size};
 
 use crate::{
     define_widget, GraphicsContext, Gui, HorizontalAlign, TextSection, VerticalAlign, WidgetData,
@@ -13,7 +13,7 @@ pub struct LabelData {
 
 impl WidgetObject for LabelData {
     fn draw(data: &WidgetData<Self>, context: &mut dyn GraphicsContext, size: Size<f32>) {
-        context.draw_text(size, &data.object.text.borrow());
+        context.draw_text(Point::ZERO, size, &data.object.text.borrow());
     }
 }
 
@@ -42,9 +42,13 @@ impl Label {
         let mut text = self.object.text.borrow_mut();
         text.text = string;
     }
-    pub fn set_font(&self, font: String) {
+    pub fn set_font(&self, font_id: usize) {
         let mut text = self.object.text.borrow_mut();
-        text.font = font;
+        text.font_id = font_id;
+    }
+    pub fn set_font_size(&self, font_size: f32) {
+        let mut text = self.object.text.borrow_mut();
+        text.font_size = font_size;
     }
     pub fn set_halign(&self, h_align: HorizontalAlign) {
         let mut text = self.object.text.borrow_mut();

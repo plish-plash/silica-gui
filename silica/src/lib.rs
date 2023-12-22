@@ -8,7 +8,7 @@ use std::{
     rc::{Rc, Weak},
 };
 
-use taffy::prelude::*;
+use taffy::{geometry::Point, prelude::*};
 
 pub use graphics::*;
 pub use signal::{Signal, Signals};
@@ -82,6 +82,9 @@ impl<T> WidgetData<T> {
     pub fn gui(&self) -> Rc<Gui> {
         self.gui.clone()
     }
+    pub fn layout(&self) -> Style {
+        self.gui.layout.borrow().style(self.node).unwrap().clone()
+    }
     pub fn size(&self) -> Size<f32> {
         let layout_tree = self.gui.layout.borrow();
         let layout = layout_tree.layout(self.node).unwrap();
@@ -111,6 +114,30 @@ impl<T> WidgetData<T> {
             .add_child(self.node, child.node())
             .unwrap();
         self.children.borrow_mut().push(child);
+        self.gui.mark_dirty();
+    }
+    pub fn remove_child(&self, child_node: Node) -> bool {
+        let mut children = self.children.borrow_mut();
+        if let Some(index) = children.iter().position(|v| v.node() == child_node) {
+            self.gui
+                .layout
+                .borrow_mut()
+                .remove_child(self.node, child_node)
+                .unwrap();
+            children.remove(index);
+            self.gui.mark_dirty();
+            true
+        } else {
+            false
+        }
+    }
+    pub fn remove_children(&self) {
+        self.gui
+            .layout
+            .borrow_mut()
+            .set_children(self.node, &[])
+            .unwrap();
+        self.children.borrow_mut().clear();
         self.gui.mark_dirty();
     }
 }
@@ -272,7 +299,7 @@ impl Gui {
         if let Some(visual) = widget.visual().as_ref() {
             if let Some(background) = visual.background {
                 context.set_color(background);
-                context.draw_rect(layout.size);
+                context.draw_rect(Point::ZERO, layout.size);
             }
             if let Some(border) = visual.border {
                 context.set_color(border);

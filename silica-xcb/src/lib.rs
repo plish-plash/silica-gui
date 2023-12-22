@@ -2,8 +2,9 @@ use std::{cell::Cell, rc::Rc};
 
 use pangocairo::pango;
 use silica::{
-    taffy::prelude::*, widget::Container, GraphicsContext, HorizontalAlign, TextSection,
-    ThemeColor, VerticalAlign,
+    taffy::{geometry::Point, prelude::*},
+    widget::Container,
+    GraphicsContext, HorizontalAlign, TextSection, ThemeColor, VerticalAlign,
 };
 use xcb::{x, Xid};
 
@@ -39,45 +40,48 @@ impl silica::GraphicsContext for CairoContext {
             rgba[3] as f64,
         );
     }
-    fn draw_rect(&mut self, size: Size<f32>) {
-        let size = size.map(|v| v as f64);
-        self.0.rectangle(0.0, 0.0, size.width, size.height);
-        self.0.fill().unwrap();
-    }
     fn draw_border(&mut self, size: Size<f32>, border: Rect<LengthPercentage>) {
         let size = size.map(|v| v as f64);
         let border = border.map(|val| match val {
             LengthPercentage::Points(points) => points as f64,
             LengthPercentage::Percent(_) => 0.0,
         });
-        self.0.move_to(0.0, 0.0);
+        self.0.move_to(0.5, 0.5);
         if border.top > 0.0 {
             self.0.set_line_width(border.top);
-            self.0.line_to(size.width, 0.0);
+            self.0.line_to(size.width - 0.5, 0.5);
         } else {
-            self.0.move_to(size.width, 0.0);
+            self.0.move_to(size.width - 0.5, 0.5);
         }
         if border.right > 0.0 {
             self.0.set_line_width(border.right);
-            self.0.line_to(size.width, size.height);
+            self.0.line_to(size.width - 0.5, size.height - 0.5);
         } else {
-            self.0.move_to(size.width, size.height);
+            self.0.move_to(size.width - 0.5, size.height - 0.5);
         }
         if border.bottom > 0.0 {
             self.0.set_line_width(border.bottom);
-            self.0.line_to(0.0, size.height);
+            self.0.line_to(0.5, size.height - 0.5);
         } else {
-            self.0.move_to(0.0, size.height);
+            self.0.move_to(0.5, size.height - 0.5);
         }
         if border.left > 0.0 {
             self.0.set_line_width(border.left);
-            self.0.line_to(0.0, 0.0);
-        } else {
-            self.0.move_to(0.0, 0.0);
+            self.0.line_to(0.5, 0.5);
         }
+        self.0.set_line_cap(cairo::LineCap::Square);
         self.0.stroke().unwrap();
     }
-    fn draw_text(&mut self, size: Size<f32>, text: &TextSection) {
+    fn draw_rect(&mut self, point: Point<f32>, size: Size<f32>) {
+        self.0.rectangle(
+            point.x as f64,
+            point.y as f64,
+            size.width as f64,
+            size.height as f64,
+        );
+        self.0.fill().unwrap();
+    }
+    fn draw_text(&mut self, point: Point<f32>, size: Size<f32>, text: &TextSection) {
         pangocairo::update_context(&self.0, &self.1);
         let layout = pango::Layout::new(&self.1);
         layout.set_width((size.width * (pango::SCALE as f32)) as i32);
@@ -86,16 +90,30 @@ impl silica::GraphicsContext for CairoContext {
             HorizontalAlign::Center => pango::Alignment::Center,
             HorizontalAlign::Right => pango::Alignment::Right,
         });
-        let font = pango::FontDescription::from_string(&text.font); // TODO cache this
+        // TODO font stuff
+        let font_name = match text.font_id {
+            0 => "sans",
+            1 => "sans bold",
+            _ => "serif",
+        };
+        let font = pango::FontDescription::from_string(&format!(
+            "{} {}",
+            font_name, text.font_size as i32
+        ));
         layout.set_font_description(Some(&font));
         layout.set_text(&text.text);
 
         let height = size.height as f64;
         let text_height = (layout.size().1 as f64) / (pango::SCALE as f64);
         match text.v_align {
-            VerticalAlign::Top => self.0.move_to(0.0, 0.0),
-            VerticalAlign::Center => self.0.move_to(0.0, (height / 2.0) - (text_height / 2.0)),
-            VerticalAlign::Bottom => self.0.move_to(0.0, height - text_height),
+            VerticalAlign::Top => self.0.move_to(point.x as f64, point.y as f64),
+            VerticalAlign::Center => self.0.move_to(
+                point.x as f64,
+                (point.y as f64) + (height / 2.0) - (text_height / 2.0),
+            ),
+            VerticalAlign::Bottom => self
+                .0
+                .move_to(point.x as f64, (point.y as f64) + height - text_height),
         }
         pangocairo::show_layout(&self.0, &layout);
     }

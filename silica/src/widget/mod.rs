@@ -1,7 +1,7 @@
 mod button;
 mod label;
 
-pub use button::Button;
+pub use button::{Button, Checkbox};
 pub use label::Label;
 
 use std::rc::Rc;

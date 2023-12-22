@@ -1,4 +1,4 @@
-use taffy::prelude::*;
+use taffy::{geometry::Point, prelude::*};
 
 #[derive(Clone, Copy, Debug)]
 pub enum ThemeColor {
@@ -65,7 +65,8 @@ pub enum VerticalAlign {
 
 #[derive(Debug, Clone)]
 pub struct TextSection {
-    pub font: String,
+    pub font_id: usize,
+    pub font_size: f32,
     pub text: String,
     pub h_align: HorizontalAlign,
     pub v_align: VerticalAlign,
@@ -74,7 +75,8 @@ pub struct TextSection {
 impl Default for TextSection {
     fn default() -> Self {
         TextSection {
-            font: "sans 14".to_owned(),
+            font_id: 0,
+            font_size: 14.0,
             text: String::new(),
             h_align: HorizontalAlign::Left,
             v_align: VerticalAlign::Center,
@@ -88,7 +90,7 @@ pub trait GraphicsContext {
     fn translate(&mut self, tx: f32, ty: f32);
 
     fn set_color(&mut self, color: ThemeColor);
-    fn draw_rect(&mut self, size: Size<f32>);
     fn draw_border(&mut self, size: Size<f32>, border: Rect<LengthPercentage>);
-    fn draw_text(&mut self, size: Size<f32>, text: &TextSection);
+    fn draw_rect(&mut self, point: Point<f32>, size: Size<f32>);
+    fn draw_text(&mut self, point: Point<f32>, size: Size<f32>, text: &TextSection);
 }

@@ -1,4 +1,9 @@
-use silica::{model::IntModel, signal, taffy::prelude::*, widget::*};
+use silica::{
+    model::{self, Model},
+    signal,
+    taffy::prelude::*,
+    widget::*,
+};
 
 fn main() -> silica_xcb::Result<()> {
     let root = silica::Gui::new();
@@ -14,7 +19,7 @@ fn main() -> silica_xcb::Result<()> {
         ..Default::default()
     });
 
-    let times_clicked = IntModel::new(0);
+    let times_clicked = model::IntModel::new(0);
 
     let button = Button::with_label(root.gui(), "Click Me!".to_string());
     button.connect_activate({
