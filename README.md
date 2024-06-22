@@ -1,2 +1,3 @@
 # silica-gui
-Flexible retained-mode GUI
+
+This project has [moved here](https://github.com/plish-plash/grist).
